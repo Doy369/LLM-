@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="智能学习笔记整理与多轮精修助手">
+  <title>智能学习笔记整理助手</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Web LLM Study Workspace</p>
+        <h1>📚 智能学习笔记整理助手</h1>
+        <p class="intro">
+          输入原始课堂笔记、读书摘录或复习材料，AI 会整理为摘要、核心知识点和复习思考题。
+          之后可以继续输入“更简短”“提取考点”“改成表格”等建议，基于前文连续精修。
+        </p>
+      </div>
+
+      <div class="hero-actions" aria-label="页面工具">
+        <button id="themeToggleButton" class="icon-button" type="button" title="切换明暗主题" aria-label="切换明暗主题">
+          <i data-lucide="moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- API Key 仅由用户在浏览器中输入，不在源码中硬编码。 -->
+    <section class="panel api-panel" aria-labelledby="api-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="api-title">API Key 配置</h2>
+          <p>Key 仅保存在当前浏览器会话中。</p>
+        </div>
+        <span id="keyStatus" class="status-pill">未配置</span>
+      </div>
+
+      <div class="api-row">
+        <label class="sr-only" for="apiKeyInput">阿里云百炼 API Key</label>
+        <input
+          id="apiKeyInput"
+          type="password"
+          autocomplete="off"
+          placeholder="请输入阿里云百炼 API Key"
+        >
+        <button id="saveKeyButton" class="secondary-button" type="button">
+          <i data-lucide="key-round"></i>
+          <span>保存/确认</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="errorBox" class="error-box" role="alert" aria-live="assertive" hidden></section>
+
+    <!-- 左侧输入控制区 + 右侧多轮对话记录区。 -->
+    <section class="workspace">
+      <section class="panel input-panel" aria-labelledby="input-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="input-title">输入笔记或修改建议</h2>
+            <p>首轮输入原始内容，后续输入精修指令。</p>
+          </div>
+          <span id="charCount" class="mini-stat">0 字</span>
+        </div>
+
+        <label class="sr-only" for="noteInput">笔记内容或修改指令</label>
+        <textarea
+          id="noteInput"
+          rows="7"
+          placeholder="例如：把下面这段历史课笔记整理成清晰摘要，并补充考点..."
+        ></textarea>
+
+        <div class="quick-prompts" aria-label="快捷精修指令">
+          <button class="chip-button" type="button" data-prompt="请把上一次结果压缩成更简短的复习版。">更简短</button>
+          <button class="chip-button" type="button" data-prompt="请从上一次结果中提取考试高频考点，并标注易错点。">提取考点</button>
+          <button class="chip-button" type="button" data-prompt="请把上一次结果改成 Markdown 表格。">改成表格</button>
+          <button class="chip-button" type="button" data-prompt="请生成 5 道复习自测题，并附参考答案。">生成自测题</button>
+          <button class="chip-button" type="button" data-prompt="请整理成思维导图大纲，使用层级列表表达。">思维导图大纲</button>
+        </div>
+
+        <div class="action-bar">
+          <button id="sendButton" class="primary-button" type="button">
+            <i data-lucide="send-horizontal"></i>
+            <span class="button-label">生成 / 发送</span>
+          </button>
+          <button id="sampleButton" class="ghost-button" type="button">
+            <i data-lucide="sparkles"></i>
+            <span>填入示例</span>
+          </button>
+          <button id="clearButton" class="ghost-button" type="button">
+            <i data-lucide="rotate-ccw"></i>
+            <span>重新开始</span>
+          </button>
+        </div>
+
+        <div id="loadingIndicator" class="loading" aria-live="polite" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span>AI 正在思考与整理中...</span>
+        </div>
+      </section>
+
+      <section class="panel conversation-panel" aria-labelledby="conversation-title">
+        <div class="section-heading conversation-heading">
+          <div>
+            <h2 id="conversation-title">多轮整理记录</h2>
+            <p>每一轮输入和 AI 结果都会保留在当前页面。</p>
+          </div>
+          <span id="roundCount" class="mini-stat">0 轮</span>
+        </div>
+
+        <div class="tool-row" aria-label="结果工具">
+          <button id="copyLastButton" class="tool-button" type="button" disabled>
+            <i data-lucide="copy"></i>
+            <span>复制最新结果</span>
+          </button>
+          <button id="copyAllButton" class="tool-button" type="button" disabled>
+            <i data-lucide="clipboard-list"></i>
+            <span>复制全部</span>
+          </button>
+          <button id="exportButton" class="tool-button" type="button" disabled>
+            <i data-lucide="download"></i>
+            <span>导出 Markdown</span>
+          </button>
+        </div>
+
+        <div id="conversationList" class="conversation-list" aria-live="polite">
+          <div class="empty-state">
+            <strong>还没有整理记录</strong>
+            <span>配置 API Key 后，输入笔记即可开始。</span>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <!-- marked 负责渲染 Markdown，DOMPurify 用于清理模型输出中的潜在不安全 HTML。 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
